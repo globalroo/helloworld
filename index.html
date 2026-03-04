@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="F1 2026 Race Calendar — 24 races with session times, countdown, and calendar export">
+  <meta name="theme-color" content="#d40000">
+  <title>F1 2026 Race Calendar</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --bg-card: #1a1a1a;
+      --bg-card-hover: #222;
+      --bg-session: #252525;
+      --bg-input: #1e1e1e;
+      --text-primary: #fff;
+      --text-secondary: #b0b0b0;
+      --text-muted: #999;
+      --border-subtle: #2a2a2a;
+      --accent: #d40000;
+      --accent-sprint: #ff9800;
+      --focus-ring: rgba(225, 6, 0, 0.5);
+      --shadow-glow: 0 0 20px rgba(225, 6, 0, 0.3);
+    }
+
+    [data-theme="light"] {
+      --bg: #f3f3f3;
+      --bg-card: #fff;
+      --bg-card-hover: #f9f9f9;
+      --bg-session: #eee;
+      --bg-input: #fff;
+      --text-primary: #111;
+      --text-secondary: #555;
+      --text-muted: #666;
+      --border-subtle: #ddd;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text-secondary);
+      min-height: 100vh;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    /* Skip link */
+    .skip-link {
+      position: absolute;
+      top: -100%;
+      left: 1rem;
+      background: var(--accent);
+      color: #fff;
+      padding: 0.5rem 1rem;
+      border-radius: 0 0 6px 6px;
+      z-index: 100;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .skip-link:focus {
+      top: 0;
+    }
+
+    /* Focus styles */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    header {
+      background: linear-gradient(135deg, #e10600 0%, #900 100%);
+      padding: 1.5rem 2rem;
+      text-align: center;
+      position: relative;
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .header-sub {
+      color: rgba(255,255,255,0.85);
+      margin-top: 0.25rem;
+      font-size: 1.1rem;
+    }
+
+    /* Season progress */
+    .season-progress {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0.6rem 0 0;
+    }
+
+    .progress-bar {
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+      height: 6px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      background: #fff;
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    .progress-label {
+      color: rgba(255,255,255,0.75);
+      font-size: 0.8rem;
+      margin-top: 0.3rem;
+      text-align: center;
+    }
+
+    /* Theme toggle */
+    .theme-toggle {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #fff;
+      font-size: 1.2rem;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .theme-toggle:hover {
+      background: rgba(255,255,255,0.25);
+    }
+
+    /* Controls bar */
+    .controls {
+      max-width: 900px;
+      margin: 1rem auto 0;
+      padding: 0 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .search-input {
+      flex: 1;
+      min-width: 180px;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-input);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+    .search-input::placeholder { color: var(--text-muted); }
+
+    .filter-btn {
+      padding: 0.4rem 0.75rem;
+      border-radius: 20px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .filter-btn:hover,
+    .filter-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .jump-next-btn {
+      padding: 0.4rem 0.75rem;
+      border-radius: 20px;
+      border: 1px solid var(--accent);
+      background: transparent;
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .jump-next-btn:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Next race hero */
+    .next-race-hero {
+      max-width: 900px;
+      margin: 1.5rem auto 0;
+      padding: 0 1rem;
+    }
+
+    .hero-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      border: 2px solid var(--accent);
+      box-shadow: var(--shadow-glow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-label {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+    }
+
+    .hero-race-name {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .hero-details {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+    }
+
+    .hero-circuit-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .circuit-chip {
+      background: var(--bg-session);
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .countdown {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .countdown-unit {
+      text-align: center;
+      min-width: 60px;
+    }
+
+    .countdown-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .countdown-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .hero-sessions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    /* Race list */
+    .race-list {
+      max-width: 900px;
+      margin: 1.5rem auto 2rem;
+      padding: 0 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      display: none;
+    }
+
+    /* Race card */
+    .race-card {
+      background: var(--bg-card);
+      border-radius: 10px;
+      border-left: 4px solid var(--accent);
+      overflow: hidden;
+      transition: background 0.15s ease;
+    }
+
+    .race-card.sprint-weekend {
+      border-left-color: var(--accent-sprint);
+    }
+
+    .race-card.past {
+      opacity: 0.5;
+    }
+
+    .race-card.next-race {
+      border-left-color: var(--accent);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .card-header {
+      display: grid;
+      grid-template-columns: 52px 1fr auto;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      color: inherit;
+      font: inherit;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .card-header {
+        transition: background 0.15s ease;
+      }
+      .card-header:hover {
+        background: var(--bg-card-hover);
+      }
+      .race-card-enter {
+        animation: slideIn 0.3s ease both;
+      }
+      @keyframes slideIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    }
+
+    .round-flag {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.15rem;
+    }
+
+    .round-number {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .sprint-weekend .round-number {
+      color: var(--accent-sprint);
+    }
+
+    .flag-img {
+      width: 28px;
+      height: 20px;
+      border-radius: 2px;
+      object-fit: cover;
+    }
+
+    .race-info .race-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .race-info .circuit-name {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.1rem;
+      display: block;
+    }
+
+    .race-info .location {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.1rem;
+      display: block;
+    }
+
+    .sprint-badge {
+      display: inline-block;
+      background: var(--accent-sprint);
+      color: #000;
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    .circuit-type-badge {
+      display: inline-block;
+      background: var(--bg-session);
+      color: var(--text-secondary);
+      font-size: 0.6rem;
+      font-weight: 600;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    .race-date {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .race-date .day {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .race-date .month-year {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .expand-icon {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+      display: block;
+      text-align: right;
+      margin-top: 0.2rem;
+    }
+
+    .race-card[aria-expanded="true"] .expand-icon {
+      transform: rotate(180deg);
+    }
+
+    /* Expandable sessions panel */
+    .sessions-panel {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.25s ease;
+    }
+
+    .race-card[aria-expanded="true"] .sessions-panel {
+      grid-template-rows: 1fr;
+    }
+
+    .sessions-inner {
+      overflow: hidden;
+    }
+
+    .sessions-content {
+      padding: 0 1.25rem 1rem;
+    }
+
+    .circuit-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .fact-chip {
+      background: var(--bg-session);
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .sessions-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .session {
+      font-size: 0.8rem;
+      background: var(--bg-session);
+      padding: 0.35rem 0.6rem;
+      border-radius: 5px;
+    }
+
+    .session .label {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 0.65rem;
+      font-weight: 600;
+    }
+
+    .session .time {
+      color: var(--text-secondary);
+    }
+
+    .session .track-time {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      display: block;
+    }
+
+    .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .action-btn:hover {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      .sessions-panel {
+        transition: none;
+      }
+      .progress-fill {
+        transition: none;
+      }
+    }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.6rem; }
+      .card-header {
+        grid-template-columns: 40px 1fr auto;
+        padding: 0.85rem 1rem;
+        gap: 0.75rem;
+      }
+      .round-number { font-size: 1.1rem; }
+      .race-info .race-name { font-size: 0.95rem; }
+      .hero-race-name { font-size: 1.3rem; }
+      .countdown-value { font-size: 1.5rem; }
+      .countdown-unit { min-width: 48px; }
+      .controls { gap: 0.4rem; }
+      .flag-img { width: 24px; height: 17px; }
+    }
+
+    @media (max-width: 380px) {
+      .race-date .month-year { display: none; }
+    }
+
+    /* Screen reader only */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Noscript fallback */
+    noscript .static-race {
+      max-width: 900px;
+      margin: 1rem auto;
+      padding: 0.5rem 1rem;
+      border-left: 3px solid var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <a href="#raceList" class="skip-link">Skip to race calendar</a>
+
+  <header role="banner">
+    <h1>Formula 1 &mdash; 2026</h1>
+    <p class="header-sub">24 Races &middot; Select a race for session times</p>
+    <div class="season-progress">
+      <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Season progress" id="progressBar"><div class="progress-fill" id="progressFill" style="width: 0%"></div></div>
+      <div class="progress-label" id="progressLabel"></div>
+    </div>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle light/dark theme" aria-pressed="false" title="Toggle theme">
+      <span id="themeIcon" aria-hidden="true">&#9790;</span>
+    </button>
+  </header>
+
+  <div class="next-race-hero" id="heroSection" aria-label="Next race"></div>
+
+  <nav class="controls" aria-label="Filter races">
+    <input type="search" class="search-input" id="searchInput" placeholder="Search races or locations..." aria-label="Search races">
+    <button class="filter-btn active" data-filter="all" aria-pressed="true">All</button>
+    <button class="filter-btn" data-filter="upcoming" aria-pressed="false">Upcoming</button>
+    <button class="filter-btn" data-filter="sprint" aria-pressed="false">Sprint</button>
+    <button class="jump-next-btn" id="jumpNext" aria-label="Jump to next race">Next Race &#8595;</button>
+  </nav>
+
+  <main>
+    <div class="race-list" id="raceList" role="list" aria-label="Race calendar"></div>
+    <div class="no-results" id="noResults">No races match your search.</div>
+  </main>
+
+  <noscript>
+    <p style="text-align:center; padding:2rem; color:#aaa;">This calendar requires JavaScript for interactive features.</p>
+  </noscript>
+
+  <script>
+    const SESSION_LABELS = {
+      fp1: 'FP1', fp2: 'FP2', fp3: 'FP3',
+      qualifying: 'Qualifying',
+      sprintQualifying: 'Sprint Quali',
+      sprint: 'Sprint', gp: 'Race'
+    };
+    const SESSION_ORDER = ['fp1', 'fp2', 'fp3', 'sprintQualifying', 'sprint', 'qualifying', 'gp'];
+
+    // Preferences
+    const prefs = {
+      get(key, fallback) { try { return localStorage.getItem('f1_' + key) || fallback; } catch { return fallback; } },
+      set(key, val) { try { localStorage.setItem('f1_' + key, val); } catch {} }
+    };
+
+    // Theme
+    const theme = prefs.get('theme', 'dark');
+    document.documentElement.setAttribute('data-theme', theme);
+    const themeToggle = document.getElementById('themeToggle');
+    const themeIcon = document.getElementById('themeIcon');
+    function updateThemeIcon() {
+      const current = document.documentElement.getAttribute('data-theme');
+      themeIcon.textContent = current === 'dark' ? '\u263E' : '\u2600';
+    }
+    updateThemeIcon();
+    themeToggle.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
+    themeToggle.addEventListener('click', () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      prefs.set('theme', next);
+      themeToggle.setAttribute('aria-pressed', next === 'light' ? 'true' : 'false');
+      updateThemeIcon();
+    });
+
+    function formatSessionTime(iso) {
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) +
+        ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function formatTrackTime(iso, tz) {
+      try {
+        const d = new Date(iso);
+        return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZone: tz }) + ' local';
+      } catch { return ''; }
+    }
+
+    function formatRaceDate(iso) {
+      const d = new Date(iso);
+      return {
+        day: d.toLocaleDateString(undefined, { day: 'numeric' }),
+        monthYear: d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+      };
+    }
+
+    function countryFlag(code) {
+      if (!code || code.length !== 2) return '';
+      const cp = [...code.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65);
+      return String.fromCodePoint(...cp);
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // ICS generation
+    function escapeICS(str) {
+      return String(str).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+    }
+
+    function generateICS(race) {
+      const pad = (n) => String(n).padStart(2, '0');
+      const toICS = (d) => `${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
+      let events = '';
+      for (const key of SESSION_ORDER) {
+        if (!race.sessions[key]) continue;
+        const start = new Date(race.sessions[key]);
+        const end = new Date(start.getTime() + (key === 'gp' ? 7200000 : key === 'sprint' ? 3600000 : 5400000));
+        events += `BEGIN:VEVENT\r\nDTSTART:${toICS(start)}\r\nDTEND:${toICS(end)}\r\nSUMMARY:${escapeICS('F1 ' + race.name + ' GP - ' + SESSION_LABELS[key])}\r\nLOCATION:${escapeICS(race.circuitName || race.location)}\r\nDESCRIPTION:${escapeICS(race.name + ' Grand Prix - ' + SESSION_LABELS[key] + '\nRound ' + race.round + ' of 24')}\r\nEND:VEVENT\r\n`;
+      }
+      return `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//F1 2026 Calendar//EN\r\nCALSCALE:GREGORIAN\r\n${events}END:VCALENDAR`;
+    }
+
+    function downloadICS(race) {
+      const blob = new Blob([generateICS(race)], { type: 'text/calendar;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `f1-2026-round${race.round}-${race.slug}.ics`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Countdown
+    function updateCountdown(target, gpDate) {
+      const now = new Date();
+      const diff = gpDate - now;
+      if (diff <= 0) {
+        target.innerHTML = '<span style="color: var(--accent); font-weight:700; font-size:1.1rem;">Race underway or completed!</span>';
+        return false;
+      }
+      const days = Math.floor(diff / 86400000);
+      const hours = Math.floor((diff % 86400000) / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      target.innerHTML =
+        `<div class="countdown-unit"><div class="countdown-value">${days}</div><div class="countdown-label">Days</div></div>` +
+        `<div class="countdown-unit"><div class="countdown-value">${String(hours).padStart(2,'0')}</div><div class="countdown-label">Hours</div></div>` +
+        `<div class="countdown-unit"><div class="countdown-value">${String(mins).padStart(2,'0')}</div><div class="countdown-label">Mins</div></div>` +
+        `<div class="countdown-unit"><div class="countdown-value">${String(secs).padStart(2,'0')}</div><div class="countdown-label">Secs</div></div>`;
+      return true;
+    }
+
+    // Smooth scroll helper respecting reduced motion
+    function smoothScroll(el) {
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth', block: 'center' });
+    }
+
+    // Main render
+    fetch('f1-2026.json')
+      .then(r => { if (!r.ok) throw new Error('Failed to load'); return r.json(); })
+      .then(data => {
+        const list = document.getElementById('raceList');
+        const heroSection = document.getElementById('heroSection');
+        const now = new Date();
+        let nextRaceEl = null;
+        let nextRace = null;
+        const cards = [];
+        let completedCount = 0;
+
+        data.races.forEach((race, idx) => {
+          const isSprint = !!race.sessions.sprint;
+          const raceDate = new Date(race.sessions.gp);
+          const isPast = raceDate < now;
+          if (isPast) completedCount++;
+          const isNext = !isPast && !nextRace;
+          if (isNext) nextRace = race;
+          const { day, monthYear } = formatRaceDate(race.sessions.gp);
+          const flag = countryFlag(race.countryCode);
+          const flagUrl = race.countryCode ? `https://flagcdn.com/w40/${race.countryCode.toLowerCase()}.png` : '';
+
+          const article = document.createElement('article');
+          article.className = 'race-card' + (isSprint ? ' sprint-weekend' : '') + (isPast ? ' past' : '') + (isNext ? ' next-race' : '');
+          article.setAttribute('role', 'listitem');
+          article.setAttribute('aria-expanded', 'false');
+          article.dataset.name = (race.name + ' ' + race.location + ' ' + (race.circuitName || '')).toLowerCase();
+          article.dataset.sprint = isSprint ? '1' : '0';
+          article.dataset.past = isPast ? '1' : '0';
+
+          const sessionsHtml = SESSION_ORDER
+            .filter(key => race.sessions[key])
+            .map(key => {
+              const trackTime = race.timezone ? formatTrackTime(race.sessions[key], race.timezone) : '';
+              return `<div class="session">
+                <span class="label">${SESSION_LABELS[key]}</span>
+                <time class="time" datetime="${race.sessions[key]}">${formatSessionTime(race.sessions[key])}</time>
+                ${trackTime ? `<span class="track-time">${escapeHtml(trackTime)}</span>` : ''}
+              </div>`;
+            }).join('');
+
+          const factsHtml = [
+            race.trackLength ? race.trackLength : null,
+            race.laps ? `${race.laps} laps` : null,
+            race.drsZones ? `${race.drsZones} DRS zone${race.drsZones > 1 ? 's' : ''}` : null,
+            race.circuitType ? race.circuitType.charAt(0).toUpperCase() + race.circuitType.slice(1) + ' circuit' : null,
+            race.firstGP ? `Since ${race.firstGP}` : null
+          ].filter(Boolean).map(f => `<span class="fact-chip">${f}</span>`).join('');
+
+          const f1Link = `https://www.formula1.com/en/racing/2026/${race.slug}`;
+
+          article.innerHTML = `
+            <button class="card-header" aria-expanded="false" aria-controls="sessions-${race.round}">
+              <span class="round-flag">
+                <span class="round-number" aria-label="Round ${race.round}">${race.round}</span>
+                ${flagUrl ? `<img class="flag-img" src="${flagUrl}" alt="${escapeHtml(race.countryCode)} flag" loading="lazy" width="28" height="20">` : ''}
+              </span>
+              <span class="race-info">
+                <span class="race-name">
+                  ${escapeHtml(race.name)} Grand Prix
+                  ${isSprint ? '<span class="sprint-badge" aria-label="Sprint weekend">Sprint</span>' : ''}
+                  ${race.circuitType === 'street' ? '<span class="circuit-type-badge">Street</span>' : ''}
+                </span>
+                ${race.circuitName ? `<span class="circuit-name">${escapeHtml(race.circuitName)}</span>` : ''}
+                <span class="location">${escapeHtml(race.location)}</span>
+              </span>
+              <span class="race-date">
+                <span class="day"><time datetime="${race.sessions.gp}">${day}</time></span>
+                <span class="month-year">${monthYear}</span>
+                <span class="expand-icon" aria-hidden="true">&#9660;</span>
+              </span>
+            </button>
+            <div class="sessions-panel" id="sessions-${race.round}" role="region" aria-label="Session times for ${escapeHtml(race.name)} Grand Prix" aria-hidden="true">
+              <div class="sessions-inner">
+                <div class="sessions-content">
+                  ${factsHtml ? `<div class="circuit-facts">${factsHtml}</div>` : ''}
+                  <div class="sessions-grid">${sessionsHtml}</div>
+                  <div class="card-actions">
+                    <button class="action-btn ics-btn" tabindex="-1" data-round="${race.round}" aria-label="Add ${escapeHtml(race.name)} Grand Prix to calendar">&#128197; Add to Calendar</button>
+                    <a class="action-btn" tabindex="-1" href="${f1Link}" target="_blank" rel="noopener noreferrer" aria-label="View ${escapeHtml(race.name)} Grand Prix on F1.com">&#127760; F1.com</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+
+          // Stagger animation
+          article.style.animationDelay = `${idx * 30}ms`;
+          article.classList.add('race-card-enter');
+
+          // Toggle expand
+          const headerBtn = article.querySelector('.card-header');
+          const panelInteractive = article.querySelectorAll('.sessions-panel .action-btn');
+          const sessionsPanel = article.querySelector('.sessions-panel');
+          headerBtn.addEventListener('click', () => {
+            const expanded = article.getAttribute('aria-expanded') === 'true';
+            const newState = !expanded;
+            article.setAttribute('aria-expanded', String(newState));
+            headerBtn.setAttribute('aria-expanded', String(newState));
+            sessionsPanel.setAttribute('aria-hidden', String(!newState));
+            panelInteractive.forEach(el => el.tabIndex = newState ? 0 : -1);
+          });
+
+          // ICS download
+          article.querySelector('.ics-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            downloadICS(race);
+          });
+
+          list.appendChild(article);
+          cards.push({ el: article, race });
+          if (isNext) nextRaceEl = article;
+        });
+
+        // Season progress
+        const progressFill = document.getElementById('progressFill');
+        const progressBar = document.getElementById('progressBar');
+        const progressLabel = document.getElementById('progressLabel');
+        const pct = Math.round((completedCount / data.races.length) * 100);
+        progressFill.style.width = pct + '%';
+        progressBar.setAttribute('aria-valuenow', pct);
+        const currentRound = Math.min(completedCount + 1, data.races.length);
+        const seasonDone = completedCount >= data.races.length;
+        progressLabel.textContent = seasonDone
+          ? `Season complete \u2022 ${data.races.length} races`
+          : `Round ${currentRound} of ${data.races.length} \u2022 Season ${pct}% complete`;
+
+        // Hero section
+        if (nextRace) {
+          const flag = countryFlag(nextRace.countryCode);
+          const gpDate = new Date(nextRace.sessions.gp);
+          const heroSessionsHtml = SESSION_ORDER
+            .filter(key => nextRace.sessions[key])
+            .map(key => {
+              const trackTime = nextRace.timezone ? formatTrackTime(nextRace.sessions[key], nextRace.timezone) : '';
+              return `<div class="session">
+                <span class="label">${SESSION_LABELS[key]}</span>
+                <time class="time" datetime="${nextRace.sessions[key]}">${formatSessionTime(nextRace.sessions[key])}</time>
+                ${trackTime ? `<span class="track-time">${escapeHtml(trackTime)}</span>` : ''}
+              </div>`;
+            }).join('');
+
+          const heroChips = [
+            nextRace.trackLength,
+            nextRace.laps ? `${nextRace.laps} laps` : null,
+            nextRace.circuitType ? nextRace.circuitType.charAt(0).toUpperCase() + nextRace.circuitType.slice(1) : null,
+            nextRace.drsZones ? `${nextRace.drsZones} DRS` : null
+          ].filter(Boolean).map(c => `<span class="circuit-chip">${c}</span>`).join('');
+
+          heroSection.innerHTML = `
+            <div class="hero-card">
+              <span class="hero-label">Next Race &mdash; Round ${nextRace.round}</span>
+              <div class="hero-race-name">${flag} ${escapeHtml(nextRace.name)} Grand Prix</div>
+              <div class="hero-details">${escapeHtml(nextRace.circuitName || nextRace.location)} &middot; ${escapeHtml(nextRace.location)}</div>
+              <div class="hero-circuit-info">${heroChips}</div>
+              <div class="countdown" id="countdown" role="timer" aria-label="Countdown to race"></div>
+              <span id="countdownSR" class="sr-only" aria-live="polite"></span>
+              <div class="hero-sessions">${heroSessionsHtml}</div>
+            </div>
+          `;
+
+          const countdownEl = document.getElementById('countdown');
+          const countdownSR = document.getElementById('countdownSR');
+          updateCountdown(countdownEl, gpDate);
+          // Update visual countdown every second, SR announcement every minute
+          let srTick = 0;
+          function updateSRAnnouncement() {
+            const diff = gpDate - new Date();
+            if (diff <= 0) { countdownSR.textContent = 'Race underway or completed'; return; }
+            const d = Math.floor(diff / 86400000);
+            const h = Math.floor((diff % 86400000) / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
+            countdownSR.textContent = `${d} days, ${h} hours, ${m} minutes until race`;
+          }
+          updateSRAnnouncement();
+          setInterval(() => {
+            updateCountdown(countdownEl, gpDate);
+            srTick++;
+            if (srTick >= 60) { srTick = 0; updateSRAnnouncement(); }
+          }, 1000);
+        }
+
+        // Search & Filter
+        const searchInput = document.getElementById('searchInput');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        const noResults = document.getElementById('noResults');
+        let activeFilter = 'all';
+
+        function applyFilters() {
+          const query = searchInput.value.toLowerCase().trim();
+          let visible = 0;
+          cards.forEach(({ el }) => {
+            const matchesSearch = !query || el.dataset.name.includes(query);
+            let matchesFilter = true;
+            if (activeFilter === 'upcoming') matchesFilter = el.dataset.past === '0';
+            if (activeFilter === 'sprint') matchesFilter = el.dataset.sprint === '1';
+            const show = matchesSearch && matchesFilter;
+            el.style.display = show ? '' : 'none';
+            if (show) visible++;
+          });
+          noResults.style.display = visible === 0 ? 'block' : 'none';
+        }
+
+        // URL state for filters
+        function readURLState() {
+          const params = new URLSearchParams(location.search);
+          const filter = params.get('filter');
+          const q = params.get('q');
+          if (filter && ['all','upcoming','sprint'].includes(filter)) {
+            activeFilter = filter;
+            filterBtns.forEach(b => {
+              const isActive = b.dataset.filter === filter;
+              b.classList.toggle('active', isActive);
+              b.setAttribute('aria-pressed', String(isActive));
+            });
+          }
+          if (q) searchInput.value = q;
+          applyFilters();
+        }
+
+        function writeURLState() {
+          const params = new URLSearchParams();
+          if (activeFilter !== 'all') params.set('filter', activeFilter);
+          if (searchInput.value.trim()) params.set('q', searchInput.value.trim());
+          const qs = params.toString();
+          const newUrl = qs ? `${location.pathname}?${qs}` : location.pathname;
+          history.replaceState(null, '', newUrl);
+        }
+
+        searchInput.addEventListener('input', () => { applyFilters(); writeURLState(); });
+
+        filterBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            filterBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
+            btn.classList.add('active');
+            btn.setAttribute('aria-pressed', 'true');
+            activeFilter = btn.dataset.filter;
+            applyFilters();
+            writeURLState();
+          });
+        });
+
+        readURLState();
+
+        // Jump to next race
+        document.getElementById('jumpNext').addEventListener('click', () => {
+          if (nextRaceEl) smoothScroll(nextRaceEl);
+        });
+
+        // Auto-scroll on first visit
+        if (nextRaceEl && !sessionStorage.getItem('f1_visited')) {
+          sessionStorage.setItem('f1_visited', '1');
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              smoothScroll(nextRaceEl);
+            });
+          });
+        }
+      })
+      .catch(() => {
+        document.getElementById('raceList').innerHTML = '<div style="text-align:center; padding:3rem; color:var(--text-muted);">Failed to load race calendar. Please try refreshing the page.</div>';
+      });
+
+    // Service Worker registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>
